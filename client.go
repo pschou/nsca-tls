@@ -17,7 +17,7 @@ import (
 
 var (
 	_       = flag.String("server", "my.server", "endpoint host to send messages")
-	_       = flag.Int("port", 5568, "endpoint port to send messages")
+	_       = flag.Int("port", 5668, "endpoint port to send messages")
 	_       = flag.String("command_file", "/dev/shm/nagios.cmd", "create a listening file here")
 	_       = flag.Duration("delay", time.Second*5, "heartbeat interval")
 	file    *os.File
