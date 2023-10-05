@@ -16,24 +16,36 @@ import (
 )
 
 var (
-	server    = flag.String("server", "my.server:5568", "endpoint to send messages")
-	namedPipe = flag.String("pipe", "/dev/shm/nagios.cmd", "create a listening file here")
-	delay     = flag.Duration("delay", time.Second*5, "heartbeat interval")
-	file      *os.File
-	conn      net.Conn
-	version   string
+	_       = flag.String("server", "my.server", "endpoint host to send messages")
+	_       = flag.Int("port", 5568, "endpoint port to send messages")
+	_       = flag.String("command_file", "/dev/shm/nagios.cmd", "create a listening file here")
+	_       = flag.Duration("delay", time.Second*5, "heartbeat interval")
+	file    *os.File
+	conn    net.Conn
+	version string
+	prog    = "nsca-tls-client"
+	delay   time.Duration
 )
 
 func main() {
 	fmt.Println("NSCA-TLS Client, Version", version, "(https://github.com/pschou/nsca-tls)")
 	flag.Parse()
+	loadConfig()
 	loadTLS()
-	log.Println("Starting up...")
 
-	err := unix.Mkfifo(*namedPipe, 0666)
+	var err error
+	delay, err = time.ParseDuration(conf["delay"])
 	if err != nil {
-		log.Fatal("Make named pipe file error:", err, " ", *namedPipe)
+		log.Fatal("Bad delay", err)
 	}
+
+	log.Println("Starting up...")
+	err = unix.Mkfifo(conf["command_file"], 0666)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	keepFIFO := err != nil
+	// log.Fatal("Make named pipe file error:", err, " ", conf["command_file"])
 
 	// Handle signals to make sure the fifo file is removed
 	c := make(chan os.Signal)
@@ -46,7 +58,9 @@ func main() {
 		if conn != nil {
 			conn.Close()
 		}
-		os.Remove(*namedPipe)
+		if keepFIFO {
+			os.Remove(conf["command_file"])
+		}
 		os.Exit(0)
 	}
 	go func() {
@@ -68,9 +82,9 @@ func main() {
 				}
 			}
 			if conn == nil {
-				log.Println("Retrying connect in", *delay)
+				log.Println("Retrying connect in", delay)
 			}
-			time.Sleep(*delay)
+			time.Sleep(delay)
 		}
 	}()
 
@@ -79,7 +93,7 @@ func main() {
 		if file != nil {
 			file.Close()
 		}
-		file, err := os.OpenFile(*namedPipe, os.O_RDONLY|os.O_CREATE, os.ModeNamedPipe|0666)
+		file, err := os.OpenFile(conf["command_file"], os.O_RDONLY|os.O_CREATE, os.ModeNamedPipe|0666)
 		if err != nil {
 			log.Println("Open named pipe file error:", err)
 		}
@@ -88,17 +102,20 @@ func main() {
 
 		for {
 			line, err := reader.ReadBytes('\n')
+			//log.Printf("read line: %q\n", string(line))
 			if err != nil {
 				//log.Println("reading err", err)
 				break
 			}
 			for len(line) > 0 && line[len(line)-1] == '\n' {
 				if conn != nil {
+					//log.Printf("write line to conn: %q\n", string(line))
 					_, err = conn.Write(line)
 					if err == nil {
 						break
 					}
 				}
+				//log.Println("retrying")
 				time.Sleep(time.Second)
 			}
 		}
@@ -109,11 +126,11 @@ func dial() {
 	if conn != nil {
 		conn.Close()
 	}
-	newConn, err := tls.Dial("tcp", *server, tlsConfig)
+	newConn, err := tls.Dial("tcp", net.JoinHostPort(conf["server"], conf["port"]), tlsConfig)
 	if err != nil {
-		log.Println("client: dial error: %s", err)
+		log.Println("client: dial error:", err)
 	} else {
 		conn = newConn
-		log.Println("client: connected to: ", conn.RemoteAddr())
+		log.Println("client: connected to:", conn.RemoteAddr())
 	}
 }

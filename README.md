@@ -11,10 +11,10 @@ Attempts are made to reconnect if a connection is lost; however back pressure is
 
 Server startup example:
 ```
-./nsca-tls-server -ca /etc/pki/ca.pem -cert /etc/pki/npe.pem -key /etc/pki/npe.pem
+./nsca-tls-server -cert ../pki/tests/npe1_cert_DONOTUSE.pem -key ../pki/tests/npe1_key_DONOTUSE.pem -ca ../pki/tests/ca_cert_DONOTUSE.pem -command_file /dev/shm/nagios.cmd -c nsca-tls-server.cfg
 ```
 
 Client startup example:
 ```
-./nsca-tls-client -server localhost:5568 -ca /etc/pki/ca.pem -cert /etc/pki/npe.pem -key /etc/pki/npe.pem
+./nsca-tls-client -server 127.0.0.1 -port 5668 -cert ../pki/tests/npe2_cert_DONOTUSE.pem -key ../pki/tests/npe2_key_DONOTUSE.pem -ca ../pki/tests/ca_cert_DONOTUSE.pem -command_file /dev/shm/client.cmd
 ```

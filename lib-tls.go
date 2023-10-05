@@ -11,24 +11,24 @@ import (
 )
 
 var (
-	certFile = flag.String("cert", "/etc/pki/server.pem", "pem encoded certificate file")
-	keyFile  = flag.String("key", "/etc/pki/server.pem", "pem encoded unencrypted key file")
-	caFile   = flag.String("ca", "/etc/pki/tls/certs/ca-bundle.crt", "pem encoded certificate authority chains")
-	ciphers  = flag.String("ciphers", "RSA_WITH_AES_128_CBC_SHA:RSA_WITH_AES_128_GCM_SHA256:RSA_WITH_AES_256_GCM_SHA384", cipher_list)
+	_ = flag.String("cert", "/etc/pki/server.pem", "pem encoded certificate file")
+	_ = flag.String("key", "/etc/pki/server.pem", "pem encoded unencrypted key file")
+	_ = flag.String("ca", "/etc/pki/tls/certs/ca-bundle.crt", "pem encoded certificate authority chains")
+	_ = flag.String("tls_ciphers", "RSA_WITH_AES_128_CBC_SHA:RSA_WITH_AES_128_GCM_SHA256:RSA_WITH_AES_256_GCM_SHA384", cipher_list)
 
 	tlsConfig *tls.Config
 )
 
 func loadTLS() {
 	// Load client cert
-	cert, err := tls.LoadX509KeyPair(*certFile, *keyFile)
+	cert, err := tls.LoadX509KeyPair(conf["cert"], conf["key"])
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("Loaded certs from", *certFile, *keyFile)
+	log.Println("Loaded certs from", conf["cert"], conf["key"])
 
 	// Load CA cert
-	caCert, err := ioutil.ReadFile(*caFile)
+	caCert, err := ioutil.ReadFile(conf["ca"])
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -120,7 +120,7 @@ func buildCipherList() (cipherList []uint16) {
 		return !unicode.IsLetter(c) && !unicode.IsNumber(c) && c != '_'
 	}
 
-	for _, c := range strings.FieldsFunc(*ciphers, f) {
+	for _, c := range strings.FieldsFunc(conf["tls_ciphers"], f) {
 		c = strings.TrimSpace(c)
 		if cv, ok := cipher_map[c]; ok {
 			cipherList = append(cipherList, cv)
