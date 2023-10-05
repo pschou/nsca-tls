@@ -18,7 +18,7 @@ var (
 
 func loadConfig() {
 	flag.VisitAll(func(f *flag.Flag) {
-		fmt.Println("setting", f.Name, f.DefValue)
+		//fmt.Println("setting", f.Name, f.DefValue)
 		conf[f.Name] = f.DefValue
 	})
 	if *confFile != "" {
@@ -53,14 +53,14 @@ func loadConfig() {
 			if _, ok := conf[strings.TrimSpace(string(parts[0]))]; !ok {
 				log.Println("Unused config option:", string(line), "on line", i)
 			} else {
-				fmt.Println("conf-setting", strings.TrimSpace(string(parts[0])), val)
+				//fmt.Println("conf-setting", strings.TrimSpace(string(parts[0])), val)
 				conf[strings.TrimSpace(string(parts[0]))] = val
 			}
 		}
 	}
 	fmt.Println("walking args")
 	flag.Visit(func(f *flag.Flag) {
-		fmt.Println("arg-setting", f.Name, f.Value)
+		//fmt.Println("arg-setting", f.Name, f.Value)
 		conf[f.Name] = f.Value.String()
 	})
 }

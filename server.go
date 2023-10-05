@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	_                = flag.String("listen", ":5568", "endpoint to listen for messages")
+	_                = flag.String("listen", ":5668", "endpoint to listen for messages")
 	_                = flag.String("command_file", "/usr/local/var/nagios/rw/nagios.cmd", "target to send updates")
 	_                = flag.String("allow", "allowList.txt", "file with allowed certificate DNs to accept")
 	_                = flag.Int("max_command_size", 16384, "accept commands of length")
