@@ -112,6 +112,9 @@ func buildCipherList() (cipherList []uint16, minVer, maxVer uint16) {
 				break
 			}
 		}
+		if minVer < tls.VersionTLS12 {
+			minVer = tls.VersionTLS12
+		}
 		if !found {
 			log.Fatal("Unknown cipher: ", testCipher)
 		}
