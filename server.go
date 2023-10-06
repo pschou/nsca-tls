@@ -17,13 +17,15 @@ import (
 )
 
 var (
-	_                = flag.String("listen", ":5668", "endpoint to listen for messages")
-	_                = flag.String("command_file", "/usr/local/var/nagios/rw/nagios.cmd", "target to send updates")
-	_                = flag.String("allow", "/etc/nsca-tls-allow.txt", "file with allowed certificate DNs to accept")
-	_                = flag.Int("max_command_size", 16384, "accept commands of length")
-	_                = flag.String("max_queue_size", "100MB", "queue up to this specified number of bytes")
+	_ = flag.String("listen", ":5668", "endpoint to listen for messages")
+	_ = flag.String("command_file", "/usr/local/var/nagios/rw/nagios.cmd", "target to send updates")
+	_ = flag.String("allow", "/etc/nsca-tls-allow.txt", "file with allowed certificate DNs to accept")
+	_ = flag.Int("max_command_size", 16384, "accept commands of length")
+	_ = flag.String("max_queue_size", "100MB", "queue up to this specified number of bytes")
+	_ = flag.Duration("delay", time.Second*5, "time between heartbeats (should match client)")
+	//verbose          = flag.Bool("v", true, "turn on verbose")
+	verbose          = func() *bool { b := true; return &b }()
 	allowMap         = make(map[string]struct{})
-	_                = flag.Duration("delay", time.Second*5, "time between heartbeats (should match client)")
 	delay            time.Duration
 	max_command_size int64
 	outFile          *os.File
@@ -188,10 +190,12 @@ func handleClient(conn net.Conn) {
 		deadline = time.Now()
 		if len(line) > 1 && line[len(line)-1] == '\n' {
 			//log.Printf("write line to buffer: %q\n", string(line))
-			_, err = buf.Write(line)
+			_, err = buf.Write([]byte(processMetric(string(line))))
+
 		}
 	}
 
+	// Grab the cert name to have a friendly closure line
 	tlscon, ok := conn.(*tls.Conn)
 	var cn string
 	if ok {
@@ -200,6 +204,28 @@ func handleClient(conn net.Conn) {
 			cn = v.Subject.CommonName
 		}
 	}
-
 	log.Printf("server: conn: closed for %q at %s", cn, conn.RemoteAddr())
+}
+
+func processMetric(metric string) string {
+	// [<timestamp>] PROCESS_SERVICE_CHECK_RESULT;<host_name>;<svc_description>;<return_code>;<plugin_output>
+	//log.Printf("got string: %s", metric)
+	if parts := strings.Split(metric, "\t"); len(parts) == 4 {
+		//log.Printf("got split: %s", parts)
+		switch parts[2] {
+		case "0", "1", "2", "3":
+			return fmt.Sprintf("[%d] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%s;%s", time.Now().UTC().Unix(),
+				parts[0], parts[1], parts[2], parts[3])
+		}
+	}
+	if len(metric) > 0 && metric[0] == '[' {
+		var i int
+		for ; i < len(metric) && metric[i] >= '0' && metric[i] <= '9'; i++ {
+		}
+		if i+1 < len(metric) && metric[i] == ']' && metric[i] == ' ' {
+			//log.Printf("sending: %s", metric)
+			return metric
+		}
+	}
+	return ""
 }

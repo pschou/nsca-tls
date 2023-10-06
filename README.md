@@ -1,22 +1,37 @@
 # NSCA-TLS - Nagios Service Check Acceptor TLS Edition
 
-NSCA is a Linux/Unix daemon that allows you to integrate passive alerts and checks from remote machines and applications with Nagios.
+NSCA is a Linux/Unix daemon that allows you to integrate passive alerts and
+checks from remote machines and applications with Nagios.  This TLS edition
+uses certificates [RFC5280](https://datatracker.ietf.org/doc/html/rfc5280) to
+authenticate peers and supports TLS 1.2
+[RFC5246](https://datatracker.ietf.org/doc/html/rfc5246) and TLS 1.3
+[RFC8446](https://datatracker.ietf.org/doc/html/rfc8446).
 
 Written in GOLang, this service is intended to be set up in a client -> server
-manner in which the nsca-tls-server sits on the Nagios side and accepts
-incoming connections from the clients. Every client will either have the
-nsca-tls-client running and will expose a local FIFO file, /dev/shm/nagios.cmd,
-which will act the same way the /usr/local/var/nagios/rw/nagios.cmd file works
-on the Nagios server.  Otherwise, use the nsca-tls-post utility which takes
-input from the standard input for the use cases which a one off send of metric
-is needed.
+TCP & TLS handshake method in which the nsca-tls-server sits on the Nagios side
+and accepts incoming connections from the clients on a TCP port. Every client
+will either have the nsca-tls-client running and will expose a local FIFO file
+(for example: /dev/shm/nagios.cmd which will act the same way the
+/usr/local/var/nagios/rw/nagios.cmd file works on the Nagios server) or use the
+nsca-tls-post utility which takes input from the standard input for can sends a
+one off connection with one or more lines of metrics/commands.
+
+Note: Every command being sent must end with a newline character, if the
+message is terminated before the final newline charater is sent the last line
+will not be forwarded.
 
 Two-way SSL signed certificates do authentication and authorization. The server
 reloads the credentials (certificate common name list) from the allowlist file
 specified on the command line every minute if a change is detected.
 
 Attempts are made to reconnect if a connection is lost; however back pressure
-is sent back to the client when the connection cannot be made to the nsca-tls-server.
+is sent back to the client when the connection cannot be made to the
+nsca-tls-server.  One will need to account for this when interacting with the
+fifo as cronjobs can become "stuck" in a waiting-to-write state if the server
+endpoint is not available.  Some options may be to call the metric utility
+through a `timeout (command)` on the command line to terminate the write if a
+certain amount of time is not made, or to put the metrics collection in a loop.
+
 
 ## Example command line usage
 
@@ -164,8 +179,9 @@ Usage of ./nsca-tls-post:
 
 ## Example client conf file:
 
-nsca-tls-client.cfg
+/etc/nsca-tls-client.conf
 ```
+# This is a comment line
 ca = /etc/pki/tls/certs/ca-bundle.crt
 cert = /etc/pki/server.pem
 command_file = "/dev/shm/nagios.cmd"
@@ -178,8 +194,9 @@ tls_ciphers = AES_128_GCM_SHA256:AES_256_GCM_SHA384
 
 ## Example server conf file:
 
-nsca-tls-server.cfg
+/etc/nsca-tls-server.conf
 ```
+# This is a comment line
 allow = /etc/nsca-tls-allow.txt
 ca = /etc/pki/ca-trust/extracted
 cert = /etc/pki/server.pem

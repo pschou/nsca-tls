@@ -15,6 +15,7 @@ var (
 	_       = flag.String("server", "my.server", "endpoint host to send messages")
 	_       = flag.Int("port", 5668, "endpoint port to send messages")
 	_       = flag.Duration("delay", time.Second*5, "heartbeat interval")
+	verbose = flag.Bool("v", false, "turn on verbose")
 	file    *os.File
 	conn    net.Conn
 	version string
@@ -23,7 +24,9 @@ var (
 )
 
 func main() {
-	fmt.Println("NSCA-TLS Post, Version", version, "(https://github.com/pschou/nsca-tls)")
+	if *verbose {
+		fmt.Println("NSCA-TLS Post, Version", version, "(https://github.com/pschou/nsca-tls)")
+	}
 	flag.Parse()
 	loadConfig()
 	loadTLS()
@@ -77,6 +80,8 @@ func dial() {
 			newConn.Close()
 		}()
 		conn = newConn
-		log.Println("client: connected to:", conn.RemoteAddr())
+		if *verbose {
+			log.Println("client: connected to:", conn.RemoteAddr())
+		}
 	}
 }

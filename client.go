@@ -20,6 +20,7 @@ var (
 	_       = flag.Int("port", 5668, "endpoint port to send messages")
 	_       = flag.String("command_file", "/dev/shm/nagios.cmd", "create a listening file here")
 	_       = flag.Duration("delay", time.Second*5, "heartbeat interval")
+	verbose = func() *bool { b := true; return &b }()
 	file    *os.File
 	conn    net.Conn
 	version string

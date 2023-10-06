@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -58,7 +57,7 @@ func loadConfig() {
 			}
 		}
 	}
-	fmt.Println("walking args")
+	//fmt.Println("walking args")
 	flag.Visit(func(f *flag.Flag) {
 		//fmt.Println("arg-setting", f.Name, f.Value)
 		conf[f.Name] = f.Value.String()

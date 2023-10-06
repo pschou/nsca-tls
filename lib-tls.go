@@ -33,7 +33,9 @@ func loadTLS() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("Loaded certs from", conf["cert"], conf["key"])
+	if *verbose {
+		log.Println("Loaded certs from", conf["cert"], conf["key"])
+	}
 
 	// Load CA cert
 	caCert, err := ioutil.ReadFile(conf["ca"])
