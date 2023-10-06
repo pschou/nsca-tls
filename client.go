@@ -35,7 +35,7 @@ func main() {
 
 	var err error
 	delay, err = time.ParseDuration(conf["delay"])
-	if err != nil {
+	if err != nil || delay < time.Second {
 		log.Fatal("Bad delay", err)
 	}
 
@@ -55,8 +55,8 @@ func main() {
 		if file != nil {
 			file.Close()
 		}
-		if conn != nil {
-			conn.Close()
+		if c := conn; c != nil {
+			c.Close()
 		}
 		if keepFIFO {
 			os.Remove(conf["command_file"])
@@ -73,22 +73,21 @@ func main() {
 	go func() {
 		for {
 			if conn == nil {
+				log.Println("Connecting")
 				dial()
 			} else {
+				// Keep heartbeating (by sending an empty line) until the connection is closed
 				_, err := conn.Write([]byte{'\n'})
 				if err != nil {
 					log.Println("Error writing to conn,", err)
 					dial()
 				}
 			}
-			if conn == nil {
-				log.Println("Retrying connect in", delay)
-			}
 			time.Sleep(delay)
 		}
 	}()
 
-	log.Println("Waiting for input on fifo socket.")
+	log.Println("Waiting for input on fifo socket:", conf["command_file"])
 	for {
 		if file != nil {
 			file.Close()
@@ -108,9 +107,9 @@ func main() {
 				break
 			}
 			for len(line) > 0 && line[len(line)-1] == '\n' {
-				if conn != nil {
+				if c := conn; c != nil {
 					//log.Printf("write line to conn: %q\n", string(line))
-					_, err = conn.Write(line)
+					_, err = c.Write(line)
 					if err == nil {
 						break
 					}
@@ -125,6 +124,7 @@ func main() {
 func dial() {
 	if conn != nil {
 		conn.Close()
+		conn = nil
 	}
 	newConn, err := tls.Dial("tcp", net.JoinHostPort(conf["server"], conf["port"]), tlsConfig)
 	if err != nil {

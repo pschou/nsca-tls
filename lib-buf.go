@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	max_queue_size int64
+	max_queue_size uint64
 )
 
 type Buffer struct {

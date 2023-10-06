@@ -12,14 +12,16 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/inhies/go-bytesize"
 )
 
 var (
 	_                = flag.String("listen", ":5668", "endpoint to listen for messages")
 	_                = flag.String("command_file", "/usr/local/var/nagios/rw/nagios.cmd", "target to send updates")
-	_                = flag.String("allow", "allowList.txt", "file with allowed certificate DNs to accept")
+	_                = flag.String("allow", "/etc/nsca-tls-allow.txt", "file with allowed certificate DNs to accept")
 	_                = flag.Int("max_command_size", 16384, "accept commands of length")
-	_                = flag.Int("max_queue_size", 1024, "queue upto this specified number of megabytes")
+	_                = flag.String("max_queue_size", "100MB", "queue up to this specified number of bytes")
 	allowMap         = make(map[string]struct{})
 	_                = flag.Duration("delay", time.Second*5, "time between heartbeats (should match client)")
 	delay            time.Duration
@@ -36,22 +38,22 @@ func main() {
 	loadConfig()
 	loadTLS()
 
-	var err error
-	delay, err = time.ParseDuration(conf["delay"])
-	if err != nil {
-		log.Fatal("Bad delay", err)
-	}
-	max_queue_size, err = strconv.ParseInt(conf["max_queue_size"], 10, 64)
+	max_queue_size_val, err := bytesize.Parse(conf["max_queue_size"])
 	if err != nil {
 		log.Fatal("Bad max_queue_size", err)
+	}
+	max_queue_size = uint64(max_queue_size_val)
+	delay, err = time.ParseDuration(conf["delay"])
+	if err != nil || delay < time.Second {
+		log.Fatal("Bad delay", err)
 	}
 	max_command_size, err = strconv.ParseInt(conf["max_command_size"], 10, 64)
 	if err != nil {
 		log.Fatal("Bad max_command_size", err)
 	}
 
-	go func() {
-	}()
+	//go func() {
+	//}()
 
 	loadAllows()
 	go func() {
@@ -84,7 +86,7 @@ func main() {
 			//log.Print("ok=true")
 			err = tlscon.Handshake()
 			if err != nil {
-				log.Println("Handshake error: %s", err)
+				log.Printf("Handshake error: %s", err)
 				conn.Close()
 				continue
 			}
@@ -98,10 +100,10 @@ func main() {
 			}
 		}
 		if allowed {
-			log.Printf("server: connection from %q at %s", cn, conn.RemoteAddr())
+			log.Printf("server: connection accept for %q at %s", cn, conn.RemoteAddr())
 			go handleClient(conn)
 		} else {
-			log.Printf("server: connection denied from %q at %s", cn, conn.RemoteAddr())
+			log.Printf("server: connection denied for %q at %s", cn, conn.RemoteAddr())
 			conn.Close()
 		}
 	}
@@ -114,7 +116,7 @@ func loadAllows() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if fileinfo.ModTime().Sub(lastAllow) == 0 {
+	if !lastAllow.IsZero() && fileinfo.ModTime().Sub(lastAllow) > time.Second {
 		return
 	}
 	log.Println("Loading allow list")
@@ -130,7 +132,8 @@ func loadAllows() {
 	for scanner.Scan() {
 		newAllowMap[strings.TrimSpace(scanner.Text())] = struct{}{}
 	}
-	allowMap = newAllowMap
+	log.Println("loaded", len(newAllowMap), "allow entries")
+	allowMap, lastAllow = newAllowMap, fileinfo.ModTime()
 }
 
 func handlePipe() {
@@ -188,5 +191,15 @@ func handleClient(conn net.Conn) {
 			_, err = buf.Write(line)
 		}
 	}
-	log.Println("server: conn: closed", conn.RemoteAddr())
+
+	tlscon, ok := conn.(*tls.Conn)
+	var cn string
+	if ok {
+		state := tlscon.ConnectionState()
+		for _, v := range state.PeerCertificates {
+			cn = v.Subject.CommonName
+		}
+	}
+
+	log.Printf("server: conn: closed for %q at %s", cn, conn.RemoteAddr())
 }
