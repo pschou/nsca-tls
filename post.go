@@ -24,8 +24,10 @@ var (
 )
 
 func main() {
-	if *verbose {
-		fmt.Println("NSCA-TLS Post, Version", version, "(https://github.com/pschou/nsca-tls)")
+	flag.Usage = func() {
+		fmt.Fprintln(os.Stderr, "NSCA-TLS Post, Version", version, "(https://github.com/pschou/nsca-tls)")
+		fmt.Fprintln(os.Stderr, "Usage of "+os.Args[0]+":")
+		flag.PrintDefaults()
 	}
 	flag.Parse()
 	loadConfig()

@@ -23,8 +23,10 @@ var (
 	_ = flag.Int("max_command_size", 16384, "accept commands of length")
 	_ = flag.String("max_queue_size", "100MB", "queue up to this specified number of bytes")
 	_ = flag.Duration("delay", time.Second*5, "time between heartbeats (should match client)")
-	//verbose          = flag.Bool("v", true, "turn on verbose")
-	verbose          = func() *bool { b := true; return &b }()
+	//verbose = flag.Bool("v", false, "turn on verbose")
+	//_ = flag.Bool("verbose", false, "enable verbose logging of every line for debug purposes")
+	verbose = flag.Bool("v", true, "turn on verbose")
+	//verbose          = func() *bool { b := true; return &b }()
 	allowMap         = make(map[string]struct{})
 	delay            time.Duration
 	max_command_size int64
@@ -72,6 +74,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("server: listen: %s", err)
 	}
+
+	defer systemdStopping() // send the systemd a notice
+	systemdStarted()        // send the systemd a notice
+	go systemdWatchdog()
 
 	for {
 		conn, err := listener.Accept()
@@ -184,13 +190,19 @@ func handleClient(conn net.Conn) {
 		line, err := sliceLine(line_buf, conn)
 		eof = err == io.EOF
 		if err != nil && err != io.EOF {
-			//log.Printf("server: conn: read: %s", err)
+			if *verbose {
+				log.Printf("server: conn: read err: %s", err)
+			}
 			return
 		}
 		deadline = time.Now()
 		if len(line) > 1 && line[len(line)-1] == '\n' {
-			//log.Printf("write line to buffer: %q\n", string(line))
-			_, err = buf.Write([]byte(processMetric(string(line))))
+			metric := processMetric(string(line))
+			if *verbose {
+				log.Printf("->%q", string(line))
+				log.Printf("<-%q", metric)
+			}
+			_, err = buf.Write([]byte(metric))
 
 		}
 	}

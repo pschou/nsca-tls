@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -19,6 +20,7 @@ var (
 	_       = flag.String("server", "my.server", "endpoint host to send messages")
 	_       = flag.Int("port", 5668, "endpoint port to send messages")
 	_       = flag.String("command_file", "/dev/shm/nagios.cmd", "create a listening file here")
+	_       = flag.Bool("keep_command_file", false, "keep (don't remove) command file upon exit")
 	_       = flag.Duration("delay", time.Second*5, "heartbeat interval")
 	verbose = func() *bool { b := true; return &b }()
 	file    *os.File
@@ -45,13 +47,16 @@ func main() {
 	//if err != nil {
 	//	log.Fatal(err)
 	//}
-	keepFIFO := err != nil
-	// log.Fatal("Make named pipe file error:", err, " ", conf["command_file"])
+	keepFIFO, err := strconv.ParseBool(conf["keep_command_file"])
+	if err != nil {
+		log.Fatal("Invalid setting for keep_command_file:", conf["keep_command_file"])
+	}
 
 	// Handle signals to make sure the fifo file is removed
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	shutdown := func() {
+		systemdStopping() // send the systemd a notice
 		log.Println("Shutting down")
 		if file != nil {
 			file.Close()
@@ -87,6 +92,9 @@ func main() {
 			time.Sleep(delay)
 		}
 	}()
+
+	systemdStarted() // send the systemd a notice
+	go systemdWatchdog()
 
 	log.Println("Waiting for input on fifo socket:", conf["command_file"])
 	for {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"flag"
 	"io"
 	"log"
@@ -31,17 +30,18 @@ func loadConfig() {
 		i := 0
 		for {
 			i++
-			line, err := reader.ReadBytes('\n')
+			lineBytes, err := reader.ReadBytes('\n')
 			if err == io.EOF {
 				break
 			}
 			if err != nil {
 				log.Fatal("Read config file error:", err)
 			}
+			line := strings.TrimSpace(string(lineBytes))
 			if len(line) == 0 || line[0] == '#' {
 				continue
 			}
-			parts := bytes.SplitN(line, []byte{'='}, 2)
+			parts := strings.SplitN(line, "=", 2)
 			if len(parts) != 2 {
 				log.Fatal("Unrecognized config option:", string(line), "on line", i)
 			}
@@ -50,6 +50,9 @@ func loadConfig() {
 				val = val[1 : len(val)-1]
 			}
 			if _, ok := conf[strings.TrimSpace(string(parts[0]))]; !ok {
+				if prog == "nsca-tls-client" && (string(line) == "command_file" || string(line) == "keep_command_file") {
+					continue
+				}
 				log.Println("Unused config option:", string(line), "on line", i)
 			} else {
 				//fmt.Println("conf-setting", strings.TrimSpace(string(parts[0])), val)
